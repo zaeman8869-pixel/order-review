@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>订单审核系统 - 完整版</title>
+    <title>订单审核系统</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f5f7fa; min-height: 100vh; }
@@ -18,722 +18,233 @@
         .container { max-width: 1400px; margin: 0 auto; padding: 20px; display: grid; grid-template-columns: 280px 1fr; gap: 20px; }
         .sidebar { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
         .tabs { display: flex; gap: 10px; margin-bottom: 20px; background: white; padding: 5px; border-radius: 12px; }
-        .tab { flex: 1; padding: 12px 24px; border: none; background: transparent; border-radius: 8px; cursor: pointer; }
+        .tab { flex: 1; padding: 12px 24px; border: none; background: transparent; border-radius: 8px; cursor: pointer; text-align: center; }
         .tab.active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
         .panel { display: none; }
         .panel.active { display: block; }
         .card { background: white; border-radius: 16px; padding: 25px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); margin-bottom: 20px; }
-        .btn { padding: 12px 24px; border: none; border-radius: 10px; font-size: 15px; cursor: pointer; margin-right: 10px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 10px; font-size: 14px; cursor: pointer; margin-right: 8px; margin-bottom: 8px; }
         .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
         .btn-success { background: #10b981; color: white; }
         .btn-danger { background: #ef4444; color: white; }
+        .btn-warn { background: #f59e0b; color: white; }
         .form-group { margin-bottom: 20px; }
-        .form-group input { width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; }
+        .form-group input, .form-group textarea { width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; outline: none; }
+        .form-group textarea { resize: none; height: 80px; font-family: inherit; }
         .upload-area { border: 2px dashed #d1d5db; border-radius: 12px; padding: 40px 20px; text-align: center; cursor: pointer; background: #f9fafb; }
-        .order-item { padding: 10px; border-radius: 8px; margin-bottom: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
-        .order-item:hover { background: #f3f4f6; }
-        .code-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #e5e7eb; }
-        .code-text { font-family: monospace; font-size: 16px; font-weight: bold; color: #667eea; }
+        .order-item { padding: 12px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border: 1px solid #eee; background: #fff; transition: 0.2s; }
+        .order-item:hover { background: #f3f4f6; border-color: #667eea; }
         .admin-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
         .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; text-align: center; }
         .stat-card .number { font-size: 32px; font-weight: bold; }
+        .image-preview-container { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
+        .preview-wrapper { position: relative; width: 100px; height: 100px; }
+        .preview-img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 1px solid #ddd; cursor: pointer; }
+        .remove-img-btn { position: absolute; top: -8px; right: -8px; background: #ef4444; color: white; border-radius: 50%; width: 22px; height: 22px; text-align: center; line-height: 20px; cursor: pointer; font-size: 16px; font-weight: bold; }
+        .reason-box { background: #fff5f5; border: 1px solid #feb2b2; color: #c53030; padding: 12px; border-radius: 8px; margin-top: 10px; font-size: 14px; }
+        .status-pending { color: #f59e0b !important; font-weight: 600; }
+        .status-approved { color: #10b981 !important; font-weight: 600; }
+        .status-rejected { color: #ef4444 !important; font-weight: 600; }
+
+        #imageOverlay { 
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.9); z-index: 99999; cursor: grab; 
+            justify-content: center; align-items: center; overflow: hidden; user-select: none;
+        }
+        #overlayImg { max-width: 90%; max-height: 90%; object-fit: contain; transition: transform 0.1s ease-out; transform-origin: center; }
+        .close-overlay { position: fixed; top: 20px; right: 20px; color: white; font-size: 40px; cursor: pointer; z-index: 100000; background: rgba(0,0,0,0.5); width: 50px; height: 50px; border-radius: 50%; text-align: center; line-height: 45px; }
     </style>
 </head>
 <body>
+    <div id="imageOverlay"><span class="close-overlay" onclick="closeZoom()">×</span><img id="overlayImg" src="" draggable="false"></div>
+
     <div id="authScreen" class="auth-container">
         <div class="auth-box">
             <div class="auth-title">🔐 订单审核系统</div>
-            <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
-                <button onclick="showCodeLogin()" style="flex:1;min-width:100px;padding:12px;border:none;background:#667eea;color:white;border-radius:8px;cursor:pointer;">激活码登录</button>
-                <button onclick="showAdminLogin()" style="flex:1;min-width:100px;padding:12px;border:none;background:#f3f4f6;border-radius:8px;cursor:pointer;">管理员登录</button>
-                <button onclick="showReviewerLogin()" style="flex:1;min-width:100px;padding:12px;border:none;background:#10b981;color:white;border-radius:8px;cursor:pointer;">审核员登录</button>
+            <div style="display:flex;gap:10px;margin-bottom:20px;">
+                <button onclick="switchAuth('code')" class="btn" style="flex:1; background:#667eea; color:white;">激活码</button>
+                <button onclick="switchAuth('admin')" class="btn" style="flex:1; background:#f3f4f6;">管理员</button>
+                <button onclick="switchAuth('reviewer')" class="btn" style="flex:1; background:#10b981; color:white;">审核员</button>
             </div>
-            <div id="codeLoginPanel">
-                <input type="text" class="auth-input" id="activationCode" placeholder="请输入激活码">
-                <button class="auth-btn primary" onclick="activateWithCode()">激活使用</button>
-            </div>
-            <div id="adminLoginPanel" class="hidden">
-                <input type="text" class="auth-input" id="adminUsername" placeholder="管理员账号">
-                <input type="password" class="auth-input" id="adminPassword" placeholder="密码">
-                <button class="auth-btn primary" onclick="adminLogin()">管理员登录</button>
-            </div>
-            <div id="reviewerLoginPanel" class="hidden">
-                <input type="text" class="auth-input" id="reviewerUsername" placeholder="审核员账号">
-                <input type="password" class="auth-input" id="reviewerPassword" placeholder="密码">
-                <button class="auth-btn primary" onclick="reviewerLogin()" style="background:#10b981;">审核员登录</button>
-            </div>
+            <div id="codeLoginPanel"><input type="text" class="auth-input" id="activationCode" placeholder="输入激活码"><button class="auth-btn primary" onclick="activateWithCode()">登录</button></div>
+            <div id="adminLoginPanel" class="hidden"><input type="text" class="auth-input" id="adminUsername" placeholder="账号"><input type="password" class="auth-input" id="adminPassword" placeholder="密码"><button class="auth-btn primary" onclick="adminLogin()">登录后台</button></div>
+            <div id="reviewerLoginPanel" class="hidden"><input type="text" class="auth-input" id="reviewerUsername" placeholder="审核员账号"><input type="password" class="auth-input" id="reviewerPassword" placeholder="密码"><button class="auth-btn primary" onclick="reviewerLogin()" style="background:#10b981;">登录审核</button></div>
         </div>
     </div>
 
     <div id="mainScreen" class="hidden">
-        <div class="header">
-            <h1>📋 订单审核系统</h1>
-            <div style="display:flex;align-items:center;gap:20px;">
-                <span id="userDisplay"></span>
-                <button onclick="logout()" style="background:#ef4444;color:white;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;">退出</button>
-            </div>
-        </div>
-
+        <div class="header"><h1>📋 订单管理系统</h1><div style="display:flex;align-items:center;gap:20px;"><span id="userDisplay"></span><button onclick="location.reload()" style="background:#ef4444;color:white;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;">安全退出</button></div></div>
         <div class="container">
-            <div class="sidebar">
-                <h3>📋 我的订单</h3>
-                <div id="orderList"></div>
-            </div>
-
+            <div class="sidebar"><h3>订单列表</h3><div id="orderList" style="margin-top:10px;"></div></div>
             <div id="userInterface">
-                <div class="tabs">
-                    <button class="tab active" onclick="switchTab('upload')">📤 上传订单</button>
-                    <button class="tab" onclick="switchTab('review')">🔍 查询审核</button>
-                </div>
-
-                <div class="panel active" id="uploadPanel">
-                    <div class="card">
-                        <h3>上传新订单</h3>
-                        <div class="form-group">
-                            <label>订单号（10位数字）</label>
-                            <input type="number" id="orderNumber" placeholder="请输入10位订单号">
-                        </div>
-                        <div class="form-group">
-                            <label>上传图片</label>
-                            <div class="upload-area" onclick="document.getElementById('imageFile').click()">
-                                <div>📷 点击上传图片</div>
-                            </div>
-                            <input type="file" id="imageFile" accept="image/*" style="display:none" onchange="handleImageSelect(event)">
-                            <img id="imagePreview" style="max-width:100%;max-height:200px;display:none;margin-top:10px;">
-                        </div>
-                        <button class="btn btn-primary" onclick="submitOrder()">💾 提交订单</button>
-                    </div>
-                </div>
-
-                <div class="panel" id="reviewPanel">
-                    <div class="card">
-                        <h3>查询订单</h3>
-                        <div class="form-group">
-                            <input type="number" id="searchOrderNumber" placeholder="输入10位订单号查询">
-                        </div>
-                        <button class="btn btn-primary" onclick="searchOrder()">🔍 查询</button>
-                        <div id="searchResult"></div>
-                    </div>
-                </div>
+                <div class="tabs"><button class="tab active" onclick="switchTab('upload')">📤 上传订单</button><button class="tab" onclick="switchTab('review')">🔍 查询审核</button></div>
+                <div class="panel active" id="uploadPanel"><div class="card"><h3>上传/重传订单</h3><p style="color:#666;font-size:13px;margin-bottom:10px;">*相同订单号上传将覆盖旧记录，已通过订单不可修改。</p><div class="form-group"><label>10位订单号</label><input type="number" id="orderNumber"></div><div class="form-group"><div class="upload-area" onclick="document.getElementById('imageFiles').click()">📷 点击上传 (最多5张)</div><input type="file" id="imageFiles" accept="image/*" multiple style="display:none" onchange="handleImagesSelect(event)"><div id="imagePreviewContainer" class="image-preview-container"></div></div><button class="btn btn-primary" onclick="submitOrder()">确认提交</button></div></div>
+                <div class="panel" id="reviewPanel"><div class="card"><input type="number" id="searchOrderNumber" class="auth-input" placeholder="输入订单号"><button class="btn btn-primary" onclick="searchOrder()">查询</button><div id="searchResult" style="margin-top:20px;"></div></div></div>
             </div>
-
             <div id="adminInterface" class="hidden">
-                <div class="admin-stats">
-                    <div class="stat-card">
-                        <div class="number" id="statTotalCodes">0</div>
-                        <div>总激活码</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="number" id="statActiveCodes">0</div>
-                        <div>有效激活码</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="number" id="statTotalOrders">0</div>
-                        <div>总订单数</div>
-                    </div>
-                </div>
-
-                <div class="tabs">
-                    <button class="tab active" onclick="switchAdminTab('generate')">🔑 生成激活码</button>
-                    <button class="tab" onclick="switchAdminTab('codes')">📋 激活码管理</button>
-                    <button class="tab" onclick="switchAdminTab('orders')">📦 订单审核</button>
-                    <button class="tab" onclick="switchAdminTab('reviewers')">👥 审核员账号</button>
-                </div>
-
-                <div class="panel" id="reviewersPanel">
-                    <div class="card">
-                        <h3>审核员账号列表</h3>
-                        <div id="reviewerList"></div>
-                    </div>
-                </div>
-
-                <div class="panel active" id="generatePanel">
-                    <div class="card">
-                        <h3>生成激活码</h3>
-                        <div class="form-group">
-                            <label>生成数量（1-10个）</label>
-                            <input type="number" id="generateCount" min="1" max="10" value="1">
-                        </div>
-                        <button class="btn btn-primary" onclick="generateActivationCodes()">🎲 生成激活码</button>
-                        <div id="generatedCodes"></div>
-                    </div>
-                </div>
-
-                <div class="panel" id="codesPanel">
-                    <div class="card">
-                        <h3>激活码列表</h3>
-                        <div id="codeList"></div>
-                    </div>
-                </div>
-
-                <div class="panel" id="ordersPanel">
-                    <div class="card">
-                        <h3>订单审核</h3>
-                        <div class="form-group">
-                            <input type="number" id="adminSearchOrder" placeholder="输入订单号查询">
-                        </div>
-                        <button class="btn btn-primary" onclick="adminSearchOrder()">🔍 查询</button>
-                        <div id="adminOrderResult"></div>
-                    </div>
-                    <div class="card" style="background:#fef2f2;border:2px solid #fecaca;">
-                        <h3 style="color:#991b1b;">⚠️ 危险操作区</h3>
-                        <p style="color:#7f1d1d;margin-bottom:15px;">清除所有订单数据（包括已通过、已驳回、待审核），此操作不可恢复！</p>
-                        <button class="btn btn-danger" onclick="showClearAllOrdersConfirm()">🗑️ 清除所有订单</button>
-                        <div id="clearOrdersConfirm" style="display:none;margin-top:15px;padding:15px;background:#fee2e2;border-radius:8px;">
-                            <p style="color:#991b1b;font-weight:bold;margin-bottom:10px;">确定要清除所有订单吗？此操作不可恢复！</p>
-                            <div class="form-group">
-                                <input type="text" id="clearConfirmText" placeholder="请输入 DELETE 确认">
-                            </div>
-                            <button class="btn btn-danger" onclick="clearAllOrders()">确认清除</button>
-                            <button class="btn" onclick="hideClearConfirm()" style="background:#e5e7eb;">取消</button>
-                        </div>
-                    </div>
-                </div>
+                <div class="admin-stats"><div class="stat-card"><div class="number" id="statTotalCodes">0</div><div>总码数</div></div><div class="stat-card"><div class="number" id="statOrders">0</div><div>待处理</div></div><div class="stat-card"><div class="number" id="statActiveCodes">0</div><div>已用码</div></div></div>
+                <div class="tabs" id="adminTabs"><button class="tab" id="tab-generate" onclick="switchAdminTab('generate')">🔑 生成码</button><button class="tab" id="tab-codes" onclick="switchAdminTab('codes')">📋 码管理</button><button class="tab active" id="tab-orders" onclick="switchAdminTab('orders')">📦 审核订单</button><button class="tab" id="tab-reviewers" onclick="switchAdminTab('reviewers')">👥 审核员</button></div>
+                <div class="panel active" id="ordersPanel"><div class="card"><input type="number" id="adminSearchOrder" class="auth-input" placeholder="输入订单号"><button class="btn btn-primary" onclick="adminSearchOrder()">搜索</button><div id="adminOrderResult" style="margin-top:20px;"></div></div></div>
+                <div class="panel" id="generatePanel"><div class="card"><h3>生成激活码</h3><input type="number" id="generateCount" value="1" style="width:80px;padding:8px;margin:10px 0;"><button class="btn btn-primary" onclick="generateActivationCodes()">生成</button></div></div>
+                <div class="panel" id="codesPanel"><div class="card"><h3>激活码管理</h3><div id="codeList"></div></div></div>
+                <div class="panel" id="reviewersPanel"><div class="card"><h3>审核员列表</h3><div id="reviewerList"></div></div></div>
             </div>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
-        import { getDatabase, ref, set, get, update, remove, onValue } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
+        import { getDatabase, ref, set, get, update, onValue } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyDpIr3q6wnAvv-DUESDpk6adZa_Thz5n6c",
-            authDomain: "orderos-3794f.firebaseapp.com",
-            databaseURL: "https://orderos-3794f-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "orderos-3794f",
-            storageBucket: "orderos-3794f.firebasestorage.app",
-            messagingSenderId: "355573793755",
-            appId: "1:355573793755:web:fc5e483da06949cccc1dfe"
-        };
-
+        const firebaseConfig = { apiKey: "AIzaSyDpIr3q6wnAvv-DUESDpk6adZa_Thz5n6c", authDomain: "orderos-3794f.firebaseapp.com", databaseURL: "https://orderos-3794f-default-rtdb.asia-southeast1.firebasedatabase.app", projectId: "orderos-3794f", storageBucket: "orderos-3794f.firebasestorage.app", messagingSenderId: "355573793755", appId: "1:355573793755:web:fc5e483da06949cccc1dfe" };
         const app = initializeApp(firebaseConfig);
         const database = getDatabase(app);
-
         const ADMIN_ACCOUNT = { username: 'douyinqic123', password: 'Aa123456' };
-        const CODE_EXPIRY_DAYS = 180;
-        
-        // 生成15个审核员账号
-        const REVIEWER_ACCOUNTS = [
-            { username: 'reviewer01', password: 'Rv2024@01' },
-            { username: 'reviewer02', password: 'Rv2024@02' },
-            { username: 'reviewer03', password: 'Rv2024@03' },
-            { username: 'reviewer04', password: 'Rv2024@04' },
-            { username: 'reviewer05', password: 'Rv2024@05' },
-            { username: 'reviewer06', password: 'Rv2024@06' },
-            { username: 'reviewer07', password: 'Rv2024@07' },
-            { username: 'reviewer08', password: 'Rv2024@08' },
-            { username: 'reviewer09', password: 'Rv2024@09' },
-            { username: 'reviewer10', password: 'Rv2024@10' },
-            { username: 'reviewer11', password: 'Rv2024@11' },
-            { username: 'reviewer12', password: 'Rv2024@12' },
-            { username: 'reviewer13', password: 'Rv2024@13' },
-            { username: 'reviewer14', password: 'Rv2024@14' },
-            { username: 'reviewer15', password: 'Rv2024@15' }
-        ];
-        
-        let currentUser = null;
-        let isAdmin = false;
-        let isReviewer = false;
-        let userId = null;
-        let orders = {};
-        let currentImage = null;
+        const REVIEWERS = Array.from({length:15},(_,i)=>({username:`reviewer${(i+1).toString().padStart(2,'0')}`,password:`Rv2024@${(i+1).toString().padStart(2,'0')}`}));
+        let currentUser=null, isAdmin=false, isReviewer=false, userId=null, currentImages=[], scale = 1, isDragging = false, startX, startY, translateX = 0, translateY = 0;
+        const statusMap = { 'pending': '待审核', 'approved': '已通过', 'rejected': '已驳回' };
 
-        function generateRandomCode() {
-            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-            let code = '';
-            for (let i = 0; i < 16; i++) {
-                if (i > 0 && i % 4 === 0) code += '-';
-                code += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
-            return code;
-        }
+        // --- 交互逻辑 ---
+        const overlay = document.getElementById('imageOverlay'), overlayImg = document.getElementById('overlayImg');
+        window.openZoom = (src) => { overlayImg.src = src; overlay.style.display = 'flex'; scale = 1; translateX = 0; translateY = 0; updateImgTransform(); };
+        window.closeZoom = () => { overlay.style.display = 'none'; };
+        function updateImgTransform() { overlayImg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`; }
+        overlay.addEventListener('wheel', (e) => { e.preventDefault(); scale = Math.min(Math.max(0.5, scale + (e.deltaY > 0 ? -0.1 : 0.1)), 10); updateImgTransform(); });
+        overlay.addEventListener('mousedown', (e) => { if (e.target === overlayImg) { isDragging = true; startX = e.clientX - translateX; startY = e.clientY - translateY; } });
+        window.addEventListener('mousemove', (e) => { if (!isDragging) return; translateX = e.clientX - startX; translateY = e.clientY - startY; updateImgTransform(); });
+        window.addEventListener('mouseup', () => { isDragging = false; });
 
-        window.showCodeLogin = function() {
-            document.getElementById('codeLoginPanel').classList.remove('hidden');
-            document.getElementById('adminLoginPanel').classList.add('hidden');
-            document.getElementById('reviewerLoginPanel').classList.add('hidden');
+        // --- 业务逻辑 ---
+        window.switchAuth = (t) => { ['code','admin','reviewer'].forEach(p => document.getElementById(p+'LoginPanel').classList.toggle('hidden', p!==t)); };
+        window.activateWithCode = async () => {
+            const c = document.getElementById('activationCode').value.trim().toUpperCase();
+            const s = await get(ref(database, 'activationCodes/'+c));
+            if(!s.exists()) return alert('码错误');
+            userId = s.val().userId || 'u_'+Date.now();
+            await update(ref(database, 'activationCodes/'+c), { isUsed: true, userId });
+            enterMainScreen(c, false, false);
+        };
+        window.adminLogin = () => {
+            if(document.getElementById('adminUsername').value === ADMIN_ACCOUNT.username && document.getElementById('adminPassword').value === ADMIN_ACCOUNT.password) enterMainScreen('管理员', true, false);
+            else alert('错误');
+        };
+        window.reviewerLogin = () => {
+            const u = document.getElementById('reviewerUsername').value, p = document.getElementById('reviewerPassword').value;
+            if(REVIEWERS.find(r=>r.username===u && r.password===p)) enterMainScreen(u, false, true);
+            else alert('错误');
         };
 
-        window.showAdminLogin = function() {
-            document.getElementById('codeLoginPanel').classList.add('hidden');
-            document.getElementById('adminLoginPanel').classList.remove('hidden');
-            document.getElementById('reviewerLoginPanel').classList.add('hidden');
-        };
-
-        window.showReviewerLogin = function() {
-            document.getElementById('codeLoginPanel').classList.add('hidden');
-            document.getElementById('adminLoginPanel').classList.add('hidden');
-            document.getElementById('reviewerLoginPanel').classList.remove('hidden');
-        };
-
-        window.reviewerLogin = async function() {
-            const username = document.getElementById('reviewerUsername').value.trim();
-            const password = document.getElementById('reviewerPassword').value;
-            
-            const reviewer = REVIEWER_ACCOUNTS.find(r => r.username === username && r.password === password);
-            if (!reviewer) {
-                return alert('账号或密码错误');
-            }
-            
-            isReviewer = true;
-            enterMainScreen(username, false, true);
-        };
-
-        window.activateWithCode = async function() {
-            const code = document.getElementById('activationCode').value.trim().toUpperCase();
-            if (!code) return alert('请输入激活码');
-            
-            const snapshot = await get(ref(database, 'activationCodes/' + code));
-            if (!snapshot.exists()) return alert('激活码无效');
-            
-            const codeData = snapshot.val();
-            if (codeData.expiryDate < Date.now()) return alert('激活码已过期');
-            
-            userId = codeData.userId || 'user_' + Date.now();
-            await update(ref(database, 'activationCodes/' + code), { 
-                isUsed: true, userId, lastUsed: Date.now() 
-            });
-            
-            localStorage.setItem('userId', userId);
-            enterMainScreen(code, false);
-        };
-
-        window.adminLogin = async function() {
-            const username = document.getElementById('adminUsername').value;
-            const password = document.getElementById('adminPassword').value;
-            
-            if (username !== ADMIN_ACCOUNT.username || password !== ADMIN_ACCOUNT.password) {
-                return alert('账号或密码错误');
-            }
-            
-            isAdmin = true;
-            enterMainScreen(username, true);
-        };
-
-        function enterMainScreen(displayName, admin, reviewer) {
-            isAdmin = admin;
-            isReviewer = reviewer || false;
-            currentUser = displayName;
+        function enterMainScreen(name, admin, reviewer) {
+            isAdmin=admin; isReviewer=reviewer; currentUser=name;
             document.getElementById('authScreen').classList.add('hidden');
             document.getElementById('mainScreen').classList.remove('hidden');
-            document.getElementById('userDisplay').textContent = admin ? '👤 管理员' : reviewer ? '🔍 审核员' : '🔑 用户';
-            
-            if (admin) {
+            document.getElementById('userDisplay').textContent = admin?'👑 管理员':(reviewer?'🔍 审核员':'🔑 码:'+name);
+            if(admin || reviewer) {
                 document.getElementById('userInterface').classList.add('hidden');
                 document.getElementById('adminInterface').classList.remove('hidden');
-                loadAdminData();
-            } else if (reviewer) {
-                document.getElementById('userInterface').classList.add('hidden');
-                document.getElementById('adminInterface').classList.remove('hidden');
-                // 为审核员添加左侧边栏
-                document.querySelector('.container').innerHTML = `
-                    <div class="sidebar" id="reviewerSidebar">
-                        <h3>⏳ 等待审核</h3>
-                        <div id="pendingOrdersList" style="max-height:250px;overflow-y:auto;margin-bottom:15px;"></div>
-                        <h3>✓ 已审核</h3>
-                        <div id="reviewedOrdersList" style="max-height:250px;overflow-y:auto;"></div>
-                    </div>
-                    <div class="main-content" id="reviewerMainContent">
-                        <div class="admin-stats">
-                            <div class="stat-card">
-                                <div class="number" id="statTotalOrders">0</div>
-                                <div>总订单数</div>
-                            </div>
-                            <div class="stat-card" style="background:linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
-                                <div class="number" id="statPendingOrders">0</div>
-                                <div>待审核</div>
-                            </div>
-                            <div class="stat-card" style="background:linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                                <div class="number" id="statReviewedOrders">0</div>
-                                <div>已审核</div>
-                            </div>
-                        </div>
-                        <div class="card">
-                            <h3>订单审核</h3>
-                            <div class="form-group">
-                                <input type="number" id="adminSearchOrder" placeholder="输入订单号查询">
-                            </div>
-                            <button class="btn btn-primary" onclick="adminSearchOrder()">🔍 查询</button>
-                            <div id="adminOrderResult"></div>
-                        </div>
-                    </div>
-                `;
-                loadReviewerOrders();
-            } else {
-                document.getElementById('userInterface').classList.remove('hidden');
-                document.getElementById('adminInterface').classList.add('hidden');
-                loadUserData();
-            }
+                if(reviewer) { document.getElementById('tab-generate').classList.add('hidden'); document.getElementById('tab-codes').classList.add('hidden'); }
+                initAdminSystem();
+            } else { initUserSystem(); }
         }
 
-        function loadUserData() {
-            onValue(ref(database, 'orders/' + userId), (snapshot) => {
-                orders = snapshot.val() || {};
-                renderOrderList();
+        window.handleImagesSelect = (e) => {
+            const files = Array.from(e.target.files);
+            if(currentImages.length+files.length > 5) return alert('最多5张');
+            files.forEach(file => { const reader = new FileReader(); reader.onload=(ev)=>{currentImages.push(ev.target.result);renderPreviews();}; reader.readAsDataURL(file); });
+            e.target.value = "";
+        };
+        function renderPreviews() { document.getElementById('imagePreviewContainer').innerHTML = currentImages.map((src,i)=>`<div class="preview-wrapper"><img src="${src}" class="preview-img" onclick="openZoom('${src}')"><div class="remove-img-btn" onclick="removeImg(${i})">×</div></div>`).join(''); }
+        window.removeImg = (i) => { currentImages.splice(i,1); renderPreviews(); };
+
+        // --- 用户端逻辑 ---
+        function initUserSystem() {
+            onValue(ref(database, 'orders/'+userId), (s) => {
+                const o = s.val() || {};
+                document.getElementById('orderList').innerHTML = Object.keys(o).map(k => `
+                    <div class="order-item" onclick="viewOrder('${k}')">
+                        <span>#${k}</span><span class="status-${o[k].status}">${statusMap[o[k].status]}</span>
+                    </div>`).join('');
             });
         }
-
-        function renderOrderList() {
-            const list = document.getElementById('orderList');
-            const keys = Object.keys(orders).sort((a,b) => orders[b].timestamp - orders[a].timestamp);
+        window.submitOrder = async () => {
+            const n = document.getElementById('orderNumber').value;
+            if(!/^\d{10}$/.test(n)) return alert('请输入10位数字订单号');
+            if(currentImages.length===0) return alert('请上传图片');
             
-            if (keys.length === 0) {
-                list.innerHTML = '<div style="text-align:center;color:#999;padding:20px;">暂无订单</div>';
-                return;
-            }
+            // 覆盖逻辑检查
+            const old = await get(ref(database, `orders/${userId}/${n}`));
+            if(old.exists() && old.val().status === 'approved') return alert('不需要上传：该订单已经审核通过！');
             
-            list.innerHTML = keys.map(key => {
-                const order = orders[key];
-                const status = order.status || 'pending';
-                const statusText = status === 'approved' ? '✓通过' : status === 'rejected' ? '✗驳回' : '待审核';
-                return `<div class="order-item" onclick="viewOrder('${key}')">
-                    <span>${key}</span>
-                    <span style="font-size:12px;padding:4px 8px;border-radius:10px;background:${status === 'approved' ? '#d1fae5' : status === 'rejected' ? '#fee2e2' : '#fef3c7'};color:${status === 'approved' ? '#065f46' : status === 'rejected' ? '#991b1b' : '#92400e'};">${statusText}</span>
-                </div>`;
-            }).join('');
-        }
-
-        window.switchTab = function(tab) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById(tab + 'Panel').classList.add('active');
+            await set(ref(database, `orders/${userId}/${n}`), { orderNumber:n, imageDatas:currentImages, status:'pending', time:Date.now(), reason: "" });
+            alert('提交/覆盖成功'); currentImages=[]; renderPreviews(); document.getElementById('orderNumber').value='';
+        };
+        window.viewOrder=(num)=>{ document.getElementById('searchOrderNumber').value=num; switchTab('review'); searchOrder(); };
+        window.searchOrder=async()=>{
+            const n = document.getElementById('searchOrderNumber').value;
+            const s = await get(ref(database, `orders/${userId}/${n}`));
+            if(!s.exists()) return alert('未找到订单');
+            const d = s.val(), imgs = d.imageDatas || [];
+            let html = `<div class="card"><p>状态: <b class="status-${d.status}">${statusMap[d.status]}</b></p>`;
+            if(d.status === 'rejected' && d.reason) html += `<div class="reason-box">驳回/打回原因：${d.reason}</div>`;
+            html += `<div class="image-preview-container">${imgs.map(src=>`<img src="${src}" class="preview-img" onclick="openZoom('${src}')">`).join('')}</div></div>`;
+            document.getElementById('searchResult').innerHTML = html;
         };
 
-        window.switchAdminTab = function(tab) {
-            document.querySelectorAll('#adminInterface .tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('#adminInterface .panel').forEach(p => p.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById(tab + 'Panel').classList.add('active');
-            if (tab === 'codes') loadCodeList();
-            if (tab === 'reviewers') loadReviewerList();
-        };
-
-        window.handleImageSelect = function(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                currentImage = e.target.result;
-                document.getElementById('imagePreview').src = currentImage;
-                document.getElementById('imagePreview').style.display = 'block';
-            };
-            reader.readAsDataURL(file);
-        };
-
-        window.submitOrder = async function() {
-            const orderNumber = document.getElementById('orderNumber').value.trim();
-            if (!/^\d{10}$/.test(orderNumber)) return alert('订单号必须是10位数字');
-            if (!currentImage) return alert('请上传图片');
-            
-            await set(ref(database, 'orders/' + userId + '/' + orderNumber), {
-                orderNumber, imageData: currentImage, timestamp: Date.now(), status: 'pending'
+        // --- 审核端逻辑 ---
+        function initAdminSystem() {
+            onValue(ref(database, 'activationCodes'), (s) => {
+                const c = s.val() || {};
+                document.getElementById('statTotalCodes').textContent = Object.keys(c).length;
+                document.getElementById('statActiveCodes').textContent = Object.values(c).filter(v=>v.isUsed).length;
+                if(isAdmin) document.getElementById('codeList').innerHTML = Object.keys(c).reverse().map(k => `<div class="code-item"><span>${k}</span><span>${c[k].isUsed?'🔴已用':'🟢可用'}</span></div>`).join('');
             });
-            
-            alert('提交成功');
-            document.getElementById('orderNumber').value = '';
-            document.getElementById('imagePreview').style.display = 'none';
-            currentImage = null;
-        };
-
-        window.viewOrder = function(orderNumber) {
-            document.getElementById('searchOrderNumber').value = orderNumber;
-            switchTab('review');
-            searchOrder();
-        };
-
-        window.searchOrder = async function() {
-            const orderNumber = document.getElementById('searchOrderNumber').value.trim();
-            if (!orderNumber) return alert('请输入订单号');
-            
-            const order = orders[orderNumber];
-            if (!order) return alert('订单不存在');
-            
-            const statusText = order.status === 'approved' ? '✓ 已通过' : order.status === 'rejected' ? '✗ 已驳回' : '⏳ 待审核';
-            
-            document.getElementById('searchResult').innerHTML = `
-                <div class="card" style="margin-top:20px;">
-                    <p><strong>订单号：</strong>${order.orderNumber}</p>
-                    <p><strong>状态：</strong>${statusText}</p>
-                    ${order.status === 'rejected' && order.rejectReason ? `<p style="color:#991b1b;background:#fef2f2;padding:10px;border-radius:6px;"><strong>驳回原因：</strong>${order.rejectReason}</p>` : ''}
-                    <img src="${order.imageData}" style="max-width:100%;max-height:300px;">
-                </div>`;
-        };
-
-        window.generateActivationCodes = async function() {
-            const count = parseInt(document.getElementById('generateCount').value);
-            if (count < 1 || count > 10) return alert('数量必须在1-10之间');
-            
-            const codes = [];
-            const expiryDate = Date.now() + CODE_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
-            
-            for (let i = 0; i < count; i++) {
-                const code = generateRandomCode();
-                await set(ref(database, 'activationCodes/' + code), {
-                    code, createdAt: Date.now(), expiryDate, isUsed: false, createdBy: 'admin'
-                });
-                codes.push(code);
-            }
-            
-            document.getElementById('generatedCodes').innerHTML = `
-                <div class="card" style="background:#ecfdf5;margin-top:20px;">
-                    <h4>✅ 生成成功！请复制以下激活码：</h4>
-                    ${codes.map(c => `<div style="font-family:monospace;font-size:18px;font-weight:bold;color:#667eea;margin:10px 0;padding:10px;background:white;border-radius:8px;">${c}</div>`).join('')}
-                </div>`;
-            
-            loadAdminData();
-        };
-
-        async function loadAdminData() {
-            const codesSnap = await get(ref(database, 'activationCodes'));
-            const codes = codesSnap.val() || {};
-            const allCodes = Object.values(codes);
-            
-            document.getElementById('statTotalCodes').textContent = allCodes.length;
-            document.getElementById('statActiveCodes').textContent = allCodes.filter(c => !c.isUsed && c.expiryDate > Date.now()).length;
-            
-            const ordersSnap = await get(ref(database, 'orders'));
-            let orderCount = 0;
-            if (ordersSnap.exists()) {
-                ordersSnap.forEach(userOrders => { orderCount += Object.keys(userOrders.val() || {}).length; });
-            }
-            document.getElementById('statTotalOrders').textContent = orderCount;
-        }
-
-        async function loadCodeList() {
-            const snapshot = await get(ref(database, 'activationCodes'));
-            const codes = snapshot.val() || {};
-            const list = document.getElementById('codeList');
-            
-            if (Object.keys(codes).length === 0) {
-                list.innerHTML = '<div style="text-align:center;color:#999;padding:20px;">暂无激活码</div>';
-                return;
-            }
-            
-            list.innerHTML = Object.values(codes).sort((a,b) => b.createdAt - a.createdAt).map(code => {
-                const isExpired = code.expiryDate < Date.now();
-                const status = code.isUsed ? '已使用' : isExpired ? '已过期' : '有效';
-                const color = code.isUsed ? '#6b7280' : isExpired ? '#ef4444' : '#10b981';
-                return `<div class="code-item">
-                    <div>
-                        <div class="code-text">${code.code}</div>
-                        <div style="font-size:12px;color:#6b7280;">有效期至：${new Date(code.expiryDate).toLocaleDateString()}</div>
-                    </div>
-                    <span style="color:${color};font-weight:bold;">${status}</span>
-                </div>`;
-            }).join('');
-        }
-
-        function loadReviewerList() {
-            const list = document.getElementById('reviewerList');
-            list.innerHTML = `
-                <div style="margin-bottom:15px;padding:10px;background:#dbeafe;border-radius:8px;">
-                    <strong>提示：</strong>共 ${REVIEWER_ACCOUNTS.length} 个审核员账号，拥有审核、驳回、查看等全部功能，但不能生成激活码。
-                </div>
-                <table style="width:100%;border-collapse:collapse;">
-                    <thead>
-                        <tr style="background:#f3f4f6;">
-                            <th style="padding:12px;text-align:left;border-bottom:2px solid #e5e7eb;">序号</th>
-                            <th style="padding:12px;text-align:left;border-bottom:2px solid #e5e7eb;">账号</th>
-                            <th style="padding:12px;text-align:left;border-bottom:2px solid #e5e7eb;">密码</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${REVIEWER_ACCOUNTS.map((r, i) => `
-                            <tr style="border-bottom:1px solid #e5e7eb;">
-                                <td style="padding:12px;">${i + 1}</td>
-                                <td style="padding:12px;font-family:monospace;font-weight:bold;color:#667eea;">${r.username}</td>
-                                <td style="padding:12px;font-family:monospace;">${r.password}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            `;
-        }
-
-        window.adminSearchOrder = async function() {
-            const orderNumber = document.getElementById('adminSearchOrder').value.trim();
-            if (!orderNumber) return alert('请输入订单号');
-            
-            const snapshot = await get(ref(database, 'orders'));
-            let foundOrder = null;
-            let foundUserId = null;
-            
-            snapshot.forEach(userOrders => {
-                const orders = userOrders.val();
-                if (orders[orderNumber]) {
-                    foundOrder = orders[orderNumber];
-                    foundUserId = userOrders.key;
-                }
-            });
-            
-            if (!foundOrder) return alert('订单不存在');
-            
-            const statusText = foundOrder.status === 'approved' ? '✓ 已通过' : foundOrder.status === 'rejected' ? '✗ 已驳回' : '⏳ 待审核';
-            
-            document.getElementById('adminOrderResult').innerHTML = `
-                <div class="card" style="margin-top:20px;">
-                    <p><strong>订单号：</strong>${foundOrder.orderNumber}</p>
-                    <p><strong>用户：</strong>${foundUserId}</p>
-                    <p><strong>状态：</strong>${statusText}</p>
-                    <img src="${foundOrder.imageData}" style="max-width:100%;max-height:300px;display:block;margin:10px 0;">
-                    ${foundOrder.status === 'pending' ? `
-                        <div style="margin-top:15px;">
-                            <button class="btn btn-success" onclick="reviewOrder('${foundUserId}', '${orderNumber}', 'approved')">✓ 通过</button>
-                            <button class="btn btn-danger" onclick="showRejectReason('${foundUserId}', '${orderNumber}')">✗ 驳回</button>
-                        </div>
-                        <div id="rejectReasonBox_${foundUserId}_${orderNumber}" style="display:none;margin-top:15px;padding:15px;background:#fef2f2;border-radius:8px;">
-                            <label style="display:block;margin-bottom:8px;font-weight:bold;color:#991b1b;">请输入驳回原因：</label>
-                            <textarea id="rejectReason_${foundUserId}_${orderNumber}" style="width:100%;padding:10px;border:1px solid #fecaca;border-radius:6px;min-height:80px;resize:vertical;" placeholder="请输入驳回原因..."></textarea>
-                            <div style="margin-top:10px;">
-                                <button class="btn btn-danger" onclick="submitReject('${foundUserId}', '${orderNumber}')">确认驳回</button>
-                                <button class="btn" onclick="hideRejectReason('${foundUserId}', '${orderNumber}')" style="background:#e5e7eb;">取消</button>
-                            </div>
-                        </div>
-                    ` : foundOrder.status === 'rejected' && foundOrder.rejectReason ? `
-                        <div style="margin-top:15px;padding:15px;background:#fef2f2;border-radius:8px;">
-                            <p style="color:#991b1b;"><strong>驳回原因：</strong>${foundOrder.rejectReason}</p>
-                        </div>
-                    ` : ''}
-                </div>`;
-        };
-
-        window.reviewOrder = async function(userId, orderNumber, status) {
-            await update(ref(database, 'orders/' + userId + '/' + orderNumber), {
-                status, reviewTime: Date.now()
-            });
-            alert(status === 'approved' ? '已通过' : '已驳回');
-            adminSearchOrder();
-            if (typeof loadReviewerOrders === 'function') {
-                loadReviewerOrders();
-            }
-        };
-
-        window.showRejectReason = function(userId, orderNumber) {
-            document.getElementById('rejectReasonBox_' + userId + '_' + orderNumber).style.display = 'block';
-        };
-
-        window.hideRejectReason = function(userId, orderNumber) {
-            document.getElementById('rejectReasonBox_' + userId + '_' + orderNumber).style.display = 'none';
-            document.getElementById('rejectReason_' + userId + '_' + orderNumber).value = '';
-        };
-
-        window.submitReject = async function(userId, orderNumber) {
-            const reason = document.getElementById('rejectReason_' + userId + '_' + orderNumber).value.trim();
-            if (!reason) return alert('请输入驳回原因');
-            
-            await update(ref(database, 'orders/' + userId + '/' + orderNumber), {
-                status: 'rejected',
-                rejectReason: reason,
-                reviewTime: Date.now()
-            });
-            alert('已驳回');
-            adminSearchOrder();
-            loadReviewerOrders();
-        };
-
-        function loadReviewerOrders() {
-            onValue(ref(database, 'orders'), (snapshot) => {
-                const pendingList = document.getElementById('pendingOrdersList');
-                const reviewedList = document.getElementById('reviewedOrdersList');
-                
-                let pendingOrders = [];
-                let reviewedOrders = [];
-                let totalCount = 0;
-                
-                snapshot.forEach(userOrders => {
-                    const userId = userOrders.key;
-                    const orders = userOrders.val();
-                    Object.entries(orders).forEach(([orderNumber, order]) => {
-                        totalCount++;
-                        const orderData = { ...order, orderNumber, userId };
-                        if (order.status === 'pending') {
-                            pendingOrders.push(orderData);
-                        } else {
-                            reviewedOrders.push(orderData);
-                        }
+            onValue(ref(database, 'orders'), (s) => {
+                const all = s.val() || {}; let count=0;
+                document.getElementById('orderList').innerHTML = '';
+                Object.keys(all).forEach(uid => {
+                    Object.keys(all[uid]).forEach(num => {
+                        const order = all[uid][num];
+                        if(order.status==='pending') count++;
+                        document.getElementById('orderList').innerHTML += `<div class="order-item" onclick="adminView('${uid}','${num}')"><span>${num}</span><span class="status-${order.status}" style="font-size:11px;">${statusMap[order.status]}</span></div>`;
                     });
                 });
-                
-                // 按时间排序（最新的在前）
-                pendingOrders.sort((a, b) => b.timestamp - a.timestamp);
-                reviewedOrders.sort((a, b) => b.reviewTime || b.timestamp - (a.reviewTime || a.timestamp));
-                
-                // 更新统计
-                document.getElementById('statTotalOrders').textContent = totalCount;
-                document.getElementById('statPendingOrders').textContent = pendingOrders.length;
-                document.getElementById('statReviewedOrders').textContent = reviewedOrders.length;
-                
-                // 渲染等待审核列表
-                if (pendingOrders.length === 0) {
-                    pendingList.innerHTML = '<div style="text-align:center;color:#999;padding:10px;">暂无待审核订单</div>';
-                } else {
-                    pendingList.innerHTML = pendingOrders.map(order => `
-                        <div class="order-item" onclick="viewOrderForReviewer('${order.userId}', '${order.orderNumber}')" style="background:#fef3c7;margin-bottom:5px;">
-                            <span style="font-weight:bold;">${order.orderNumber}</span>
-                            <span style="font-size:12px;color:#92400e;">待审核</span>
-                        </div>
-                    `).join('');
-                }
-                
-                // 渲染已审核列表
-                if (reviewedOrders.length === 0) {
-                    reviewedList.innerHTML = '<div style="text-align:center;color:#999;padding:10px;">暂无已审核订单</div>';
-                } else {
-                    reviewedList.innerHTML = reviewedOrders.slice(0, 20).map(order => {
-                        const statusColor = order.status === 'approved' ? '#065f46' : '#991b1b';
-                        const statusBg = order.status === 'approved' ? '#d1fae5' : '#fee2e2';
-                        const statusText = order.status === 'approved' ? '已通过' : '已驳回';
-                        return `
-                            <div class="order-item" onclick="viewOrderForReviewer('${order.userId}', '${order.orderNumber}')" style="background:${statusBg};margin-bottom:5px;">
-                                <span style="font-weight:bold;">${order.orderNumber}</span>
-                                <span style="font-size:12px;color:${statusColor};">${statusText}</span>
-                            </div>
-                        `;
-                    }).join('');
-                }
+                document.getElementById('statOrders').textContent = count;
             });
+            document.getElementById('reviewerList').innerHTML = REVIEWERS.map(r => `<div class="code-item"><span>${r.username}</span><span>${r.password}</span></div>`).join('');
         }
-
-        window.viewOrderForReviewer = async function(userId, orderNumber) {
-            document.getElementById('adminSearchOrder').value = orderNumber;
-            adminSearchOrder();
+        window.adminView=(uid,num)=>{ document.getElementById('adminSearchOrder').value=num; switchAdminTab('orders'); adminSearchOrder(); };
+        window.adminSearchOrder=async()=>{
+            const n = document.getElementById('adminSearchOrder').value;
+            const s = await get(ref(database, 'orders'));
+            let f=null, fuid=null; s.forEach(u=>{if(u.val()[n]){f=u.val()[n]; fuid=u.key;}});
+            if(!f) return alert('未找到');
+            const imgs = f.imageDatas || [];
+            document.getElementById('adminOrderResult').innerHTML = `
+                <div class="card">
+                    <p>UID: ${fuid} | 状态: <b class="status-${f.status}">${statusMap[f.status]}</b></p>
+                    <div class="image-preview-container">${imgs.map(src=>`<img src="${src}" class="preview-img" onclick="openZoom('${src}')">`).join('')}</div>
+                    <div class="form-group" style="margin-top:15px;"><textarea id="rejectReason" placeholder="填写驳回/打回原因...">${f.reason||''}</textarea></div>
+                    <div>
+                        <button class="btn btn-success" onclick="rev('${fuid}','${n}','approved')">正式通过</button>
+                        <button class="btn btn-danger" onclick="rev('${fuid}','${n}','rejected')">拒绝订单</button>
+                        <button class="btn btn-warn" onclick="rev('${fuid}','${n}','rejected')">错误通过/打回重传</button>
+                    </div>
+                </div>`;
+        };
+        window.rev = async(uid,num,st)=>{ 
+            const reason = document.getElementById('rejectReason').value.trim();
+            if(st === 'rejected' && !reason) return alert('请填写驳回原因');
+            await update(ref(database, `orders/${uid}/${num}`), { status: st, reason: (st === 'rejected' ? reason : ""), time: Date.now() }); 
+            alert('操作已生效'); adminSearchOrder(); 
         };
 
-        window.showClearAllOrdersConfirm = function() {
-            document.getElementById('clearOrdersConfirm').style.display = 'block';
+        window.generateActivationCodes=async()=>{
+            const num = parseInt(document.getElementById('generateCount').value);
+            for(let i=0;i<num;i++) { const c = Math.random().toString(36).substr(2,8).toUpperCase(); await set(ref(database, 'activationCodes/'+c), {isUsed:false}); }
+            alert('生成成功');
         };
-
-        window.hideClearConfirm = function() {
-            document.getElementById('clearOrdersConfirm').style.display = 'none';
-            document.getElementById('clearConfirmText').value = '';
-        };
-
-        window.clearAllOrders = async function() {
-            const confirmText = document.getElementById('clearConfirmText').value.trim();
-            if (confirmText !== 'DELETE') {
-                return alert('请输入 DELETE 确认清除操作');
-            }
-
-            if (!confirm('最后确认：确定要清除所有订单数据吗？此操作不可恢复！')) {
-                return;
-            }
-
-            try {
-                await remove(ref(database, 'orders'));
-                alert('✅ 所有订单已清除');
-                hideClearConfirm();
-                loadAdminData();
-                document.getElementById('adminOrderResult').innerHTML = '';
-            } catch (error) {
-                alert('清除失败：' + error.message);
-            }
-        };
-
-        window.logout = function() {
-            location.reload();
-        };
+        window.switchTab=(id)=>{ document.querySelectorAll('#userInterface .tab').forEach(t=>t.classList.toggle('active', t.getAttribute('onclick').includes(id))); document.querySelectorAll('#userInterface .panel').forEach(p=>p.classList.toggle('active', p.id===id+'Panel')); };
+        window.switchAdminTab=(id)=>{ document.querySelectorAll('#adminInterface .tab').forEach(t=>t.classList.toggle('active', t.id==='tab-'+id)); document.querySelectorAll('#adminInterface .panel').forEach(p=>p.classList.toggle('active', p.id===id+'Panel')); };
     </script>
 </body>
 </html>
